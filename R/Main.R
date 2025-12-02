@@ -20,38 +20,24 @@
 
 # Model Specification:
 
-library(MTVGARCH)   # Ver. 0.9.5.4
+library(MTVGARCH)   # Ver. 0.9.5.6
 
-# # TV:
-# delta0 <- 10
-# delta1 <- 1.5
-# speed <- 10        # Note: this is not using our preferred eta-speed scale
-# loc1 <- 0.5
-# 
-# # GARCH:
-# omega <- 0.1
-# alpha <- 0.1
-# beta <- 0.8
-
-
-# T2000:  ####
-
-Tobs = 2000
+Tobs = 5000
 st = (1:Tobs)/Tobs
 shape = tvshape$single
 # Create the tv object with default parameters
-TV <- tv(st,shape)
+TV <- MTVGARCH::tv(st,shape)
 
 
 # Now override parameters with desired model specification
 TV$speedopt <- speedopt$gamma
-TV$delta0 = 10
+TV$delta0 = 0.5
 TV$pars["deltaN",1] = 1.5
 TV$pars["speedN",1] = 10
 TV$pars["locN1",1] = 0.5
 
 # Create the garch object with default parameters
-GARCH = garch(garchtype$general)
+GARCH = MTVGARCH::garch(garchtype$general)
 # Now override parameters with desired model specification
 GARCH$pars["omega",1] = 0.1
 GARCH$pars["alpha",1] = 0.1
@@ -65,34 +51,47 @@ noiseDist <- list()
 noiseDist$name = 'Normal'     
 noiseDist$mean = 0  
 noiseDist$sd = 1
-# T2000_Data1 <- generateRefData(nr.series = 1000,nr.obs = 2000,tvObj = TV,garchObj = GARCH)
-# saveRDS(T2000_Data,"T2000_Data.RDS")
-T2000_Data <- readRDS("T2000_Data.RDS")
+# set.seed(1984)
+# Ref_Data <- MTVGARCH::generateRefData(nr.series = 11000,nr.obs = Tobs,tvObj = TV,garchObj = GARCH)
+# saveRDS(Ref_Data,"T5000_Data.RDS")
+# saveRDS(Ref_Data[1:2000, ],"T2000_Data.RDS")
+
 
 # Specify a multiplicitive TV GARCH model specification using the TV & GARCH specification above
 
 # Test 1 Series: ####
-e = T2000_Data[,1]
-TV$optimcontrol$parscale <- c(20,3,20,1)
-TV <- estimateTV(e,TV)
-summary(TV)
-plot(TV)
 
-mtvgarch_mod <- tvgarch(TV,garchType = garchtype$general) 
+if(FALSE){
+    
+    T2000_Data <- readRDS("T2000_Data.RDS")
+    e = T2000_Data[,2]
+    plot(e,type='l')
+    
+    Tobs = 2000
+    st = (1:Tobs)/Tobs
+    shape = tvshape$single
+    # Create the tv object with default parameters, speedopt = eta
+    TV <- MTVGARCH::tv(st,shape)
+    
+    TV <- estimateTV(e,TV)
+    summary(TV)
+    plot(TV)
+    
+    mod <- MTVGARCH::tvgarch(TV,garchType = garchtype$general) 
+    
+    estCtrl <- list(calcSE = TRUE, verbose = TRUE)
+    mod <- estimateTVGARCH(e,mod,estCtrl,autoConverge = TRUE)
 
-mtvgarch_mod$tvOptimcontrol$parscale <- c(3,30,1)
-mtvgarch_mod$garchOptimcontrol$parscale <- c(1,1,8)
+}
 
-mtvgarch_mod <- estimateTVGARCH(e,mtvgarch_mod)
-
-View(mtvgarch_mod)
 
 
 # Run Simulation:  ####
 
 # We want to store the parameters and their standard errors for both TV & GARCH
-# We'll just use a 1000 x 9 matrix in the same format as the TABLE 1 in LSS paper
+# We'll just use a matrix with TV$pars, GARCH$pars
 
+T2000_Data <- readRDS("T2000_Data.RDS")
 
 # Setup the parallel backend
 numCores <- 6
@@ -100,43 +99,65 @@ Sys.setenv("MC_CORES" = numCores)
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
+# Create the TV Specification:
+Tobs = 2000
+st = (1:Tobs)/Tobs
+shape = tvshape$single
+# Create the tv object with default parameters, speedopt = eta
+TV <- MTVGARCH::tv(st,shape)
+TV$speedopt <- speedopt$gamma
+TV$delta0 = 0.5
+TV$pars["deltaN",1] = 1.5
+TV$pars["speedN",1] = 10
+TV$pars["locN1",1] = 0.5
 
-results = foreach(i=1:1000,.combine = rbind,.inorder = FALSE,.packages = "MTVGARCH")%dopar%{
-    
-    # Set the estimation controls to suppress console output
-    estCtrl <- list(calcSE = TRUE, verbose = FALSE)
-    
+# Set the estimation controls to suppress console output
+estCtrl <- list(calcSE = FALSE, verbose = FALSE)
+
+# Save the results for reporting:  (Row:1 Two-Step, Row:2 Iterative)
+pars <- matrix(NA,2,9)
+
+results = foreach(i=1:10,.combine = rbind,.inorder = FALSE,.packages = "MTVGARCH")%dopar%{
+
     e = T2000_Data[,i]
-    TV$optimcontrol$parscale <- c(20,3,20,1)
+
+    # Do Two-Step estimation:
+    ## Bit of a hack, but close enough:
     TV <- estimateTV(e,TV,estCtrl)
+    GARCH <- garch(garchtype$general)
+    GARCH <- estimateGARCH(e,GARCH,estCtrl,TV)    # Will estimate the h(t) after filtering g(t) from e
+    TV@delta0free <- FALSE                        # So far both delta0 and omega have been free params
+    TV <- estimateTV(e,TV,estCtrl,GARCH)          # Finally estimate TV, with only omega free
     
-    mtvgarch_mod <- tvgarch(TV,garchType = garchtype$general) 
+    pars[1,] <- c(1,2,TV$Estimated$delta0,TV$Estimated$pars[1:3],GARCH$Estimated$pars )
     
-    mtvgarch_mod$tvOptimcontrol$parscale <- c(3,30,1)
-    mtvgarch_mod$garchOptimcontrol$parscale <- c(1,1,8)
+    # Do Iterative estimation
+    TVG <- MTVGARCH::tvgarch(TV,garchType = garchtype$general) 
+    TVG <- estimateTVGARCH(e,TVG,estCtrl,autoConverge = TRUE)
     
-    # Do first iteration of estimation:
-    mtvgarch_mod <- estimateTVGARCH(e,mtvgarch_mod,estCtrl)
+    tvpars <- TVG$Estimated$tv
+    garchpars <- TVG$Estimated$garch
+    pars[2,] <- c(2,TVG@iterations,tvpars$delta0,tvpars$pars[1:3],garchpars$pars )
     
-    # Save these results for reporting:
-    # TODO
-    
-    while(isFALSE(mtvgarch_mod$Estimated$converged)){
-        mtvgarch_mod <- estimateTVGARCH(e,mtvgarch_mod,estCtrl)
-    }
-    # When estimation is complete, write the params and std errors to a 2-row matrix, 1st TV, 2nd GARCH
-    
-    estTV <- mtvgarch_mod$Estimated$tv
-    estGARCH <- mtvgarch_mod$Estimated$garch
-    
-    pars <- matrix(NA,2,10)
-    # TV pars row 1:
-    pars[1,] <- c(1,estTV$delta0,estTV$delta0_se,estTV$pars[1,1],estTV$se[1,1],estTV$pars[2,1],estTV$se[2,1],estTV$pars[3,1],estTV$se[3,1],mtvgarch_mod$Estimated$iteration)
-    
-    
+    # Return:
+    pars
     
 }
 
 # Stop the parallel cluster
 stopCluster(cl)
+
+saveRDS(results,"T2000_Results.RDS")
+
+
+# Analyse the Results:  ####
+
+
+results[results[,1]==1000, ]
+
+
+
+
+
+
 
