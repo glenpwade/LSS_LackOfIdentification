@@ -20,6 +20,8 @@
 
 library(MTVGARCH)   # Ver. 0.9.5.7
 
+setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
+
 # Gen Data ####
 
 if(FALSE){
@@ -205,7 +207,53 @@ saveRDS(rbind(results_2S,results_Iter),"T2000_Results.RDS")
 
 
 # Analyse the Results:  ####
+
+calcStats <- function(resultSet){
+    
+    resultSet <- resultSet[,c(3:9)]
+    
+    biasSet <- c(0.5,1.5,10,0.5,0.1,0.1,0.5) - colMeans(resultSet)
+    sdSet <- c(sd(resultSet[,1]),sd(resultSet[,2]),sd(resultSet[,3]),sd(resultSet[,4]),sd(resultSet[,5]),sd(resultSet[,6]),sd(resultSet[,7]))
+    
+    tblResultsGt <- matrix( c(biasSet[1],sdSet[1], biasSet[2],sdSet[2], biasSet[3],sdSet[3], biasSet[4],sdSet[4]), nrow = 1, ncol = 8 )
+    colnames(tblResultsGt) <- c("d0","d0_se","d1","d1_se","spd","spd_se","loc","loc_se")
+    rownames(tblResultsGt) <- c("meanBias, se: ")
+    
+    tblResultsHt <- matrix( c(biasSet[5],sdSet[5], biasSet[6],sdSet[6], biasSet[7],sdSet[7] ), nrow = 1, ncol = 6 )
+    colnames(tblResultsHt) <- c("omega","omega_se","alpha","alpha_se","beta","beta_se")
+    rownames(tblResultsHt) <- c("meanBias, se: ")
+    
+    print(round(tblResultsGt,4))
+    
+    print(round(tblResultsHt,4))
+    
+    #resTable <- table(tblResultsGt,dnn = dimnames(tblResultsGt))
+    
+}
+
+
 results <- readRDS("T2000_Results.RDS")
-results[results[,10]==0, ]
+
+# Any Failures?
+NrFails <- NROW(results[results[,10]==0, ])
+
+# Any high iteration/slow converging?
+SlowConverges <- results[results[,2] > 10, ]
+#
+# Conclusion: Slow but Accurate in the end!
+
+
+results_2S <- results[results[,1]==1, ]  # Col#1 = 1, 2-Step
+results_Iter <- results[results[,1]==2, ]  # Col#1 = 2, Iterative
+
+calcStats(results_2S[1:1000,])
+
+calcStats(results_Iter[1:1000,])
+
+summary(results_Iter[1:1000,(3:9)])  # V1-7: d0,d1,spd,loc, omega,alpha,beta
+
+summary(results_Iter[1:1000,2])  # Col2: Iteration Count
+hist(results_Iter[1:1000,2],breaks = 20)  # Col2: Iteration Count
+
 
 
