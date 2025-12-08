@@ -212,7 +212,7 @@ calcStats <- function(resultSet){
     
     resultSet <- resultSet[,c(3:9)]
     
-    biasSet <- c(0.5,1.5,10,0.5,0.1,0.1,0.5) - colMeans(resultSet)
+    biasSet <- c(0.5,1.5,10,0.5,0.1,0.1,0.8) - colMeans(resultSet)
     sdSet <- c(sd(resultSet[,1]),sd(resultSet[,2]),sd(resultSet[,3]),sd(resultSet[,4]),sd(resultSet[,5]),sd(resultSet[,6]),sd(resultSet[,7]))
     
     tblResultsGt <- matrix( c(biasSet[1],sdSet[1], biasSet[2],sdSet[2], biasSet[3],sdSet[3], biasSet[4],sdSet[4]), nrow = 1, ncol = 8 )
