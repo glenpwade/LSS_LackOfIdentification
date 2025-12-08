@@ -19,8 +19,10 @@
 # 4. Report the estimation results
 
 library(MTVGARCH)   # Ver. 0.9.5.7
+library(knitr)
 
 setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
+setwd("C:\\Repos\\LSS_LackOfIdentification")
 
 # Gen Data ####
 
@@ -103,10 +105,11 @@ if(FALSE){
 # We want to store the parameters and their standard errors for both TV & GARCH
 # We'll just use a matrix with TV$pars, GARCH$pars
 
-T2000_Data <- readRDS("T2000_Data.RDS")
+T2000_Data <- readRDS("T5000_Data.RDS")
+T2000_Data <- T2000_Data[(1:2000),(1:1100)]
 
 # Setup the parallel backend
-numCores <- 6
+numCores <- 10
 Sys.setenv("MC_CORES" = numCores)
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
@@ -132,12 +135,12 @@ results_2S = foreach(i=1:1100,.combine = rbind,.inorder = TRUE,.packages = "MTVG
     ## Bit of a hack, but close enough:
     # Create the TV Specification and set starting params
     TV <- MTVGARCH::tv(st,shape)
-    TV$speedopt <- speedopt$gamma
+    #TV$speedopt <- speedopt$gamma
     TV$delta0 = 0.4
     TV$pars["deltaN",1] = 1.0
-    TV$pars["speedN",1] = 5
+    TV$pars["speedN",1] = 2
     TV$pars["locN1",1] = 0.4
-    TV$optimcontrol$parscale <- c(1,2,20,1)
+    TV$optimcontrol$parscale <- c(1,3,5,1)
     
     # Step1: Estimate TV
     TV <- estimateTV(e,TV,estCtrl)
@@ -174,15 +177,15 @@ timestamp()
 results_Iter = foreach(i=1:1100,.combine = rbind,.inorder = TRUE,.packages = "MTVGARCH")%dopar%{
     
     e = T2000_Data[,i]
-    
+
     # Create the TV Specification and set starting params
     TV <- MTVGARCH::tv(st,shape)
-    TV$speedopt <- speedopt$gamma
+    #TV$speedopt <- speedopt$gamma
     TV$delta0 = 0.4
     TV$pars["deltaN",1] = 1.0
-    TV$pars["speedN",1] = 5
+    TV$pars["speedN",1] = 2
     TV$pars["locN1",1] = 0.4
-    TV$optimcontrol$parscale <- c(1,2,20,1)
+    TV$optimcontrol$parscale <- c(1,3,5,1)
     
     # Do Iterative estimation
     TV <- estimateTV(e,TV,estCtrl)
@@ -203,7 +206,7 @@ timestamp()
 # Stop the parallel cluster
 stopCluster(cl)
 
-saveRDS(rbind(results_2S,results_Iter),"T2000_Results.RDS")
+saveRDS(rbind(results_2S,results_Iter),"T2000_Results_eta.RDS")
 
 
 # Analyse the Results:  ####
@@ -213,7 +216,6 @@ calcStats <- function(resultSet){
     resultSet <- resultSet[,c(3:9)]
     
     biasSet <- c(0.5,1.5,10,0.5,0.1,0.1,0.8) - colMeans(resultSet)
-
     sdSet <- c(sd(resultSet[,1]),sd(resultSet[,2]),sd(resultSet[,3]),sd(resultSet[,4]),sd(resultSet[,5]),sd(resultSet[,6]),sd(resultSet[,7]))
     
     tblResultsGt <- matrix( c(biasSet[1],sdSet[1], biasSet[2],sdSet[2], biasSet[3],sdSet[3], biasSet[4],sdSet[4]), nrow = 1, ncol = 8 )
@@ -224,16 +226,16 @@ calcStats <- function(resultSet){
     colnames(tblResultsHt) <- c("omega","omega_se","alpha","alpha_se","beta","beta_se")
     rownames(tblResultsHt) <- c("meanBias, se: ")
     
-    print(round(tblResultsGt,4))
+    resTableG <- kable(round(tblResultsGt,4),caption="g(t)")
+    resTableH <- kable(round(tblResultsHt,4),caption="h(t)")
     
-    print(round(tblResultsHt,4))
-    
-    #resTable <- table(tblResultsGt,dnn = dimnames(tblResultsGt))
+    print(resTableG)
+    print(resTableH)
     
 }
 
 
-results <- readRDS("T2000_Results.RDS")
+results <- readRDS("T2000_Results_eta.RDS")
 
 # Any Failures?
 NrFails <- NROW(results[results[,10]==0, ])
