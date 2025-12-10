@@ -76,7 +76,7 @@ if(FALSE){
 }
 
 # T2000:  
-T2000_Data <- readRDS("T2000_Data.RDS")
+T2000_Data <- readRDS("T2000_Data_Seed1984.RDS")
 
 # Test 1 Series: ####
 
@@ -120,7 +120,7 @@ if(FALSE){
 # Run Simulation:  ####
 
 # Setup the parallel backend
-numCores <- 6
+numCores <- 10
 Sys.setenv("MC_CORES" = numCores)
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
@@ -137,7 +137,7 @@ estCtrl <- list(calcSE = FALSE, verbose = FALSE)
 pars <- matrix(NA,1,10)
 colnames(pars) <- c("EstMethod","NrIterations","d0","d1","spd","loc","omega","alpha","beta","EstError")
 
-Nr.Series <- 11    # Simulate 1100 estimations, to ensure we have 1000 that complete without error
+Nr.Series <- 1500    # Simulate 1100 estimations, to ensure we have 1000 that complete without error
 
 # 2-STEP: ####
 cat("\nTWO-STEP:\n")
@@ -216,7 +216,7 @@ calcStats <- function(resultSet){
     
     resultSet <- resultSet[,c(3:9)]  #Extract the parameters
     
-    biasSet <- c(0.5,1.5,logb(10),0.5,0.1,0.1,0.8) - colMeans(resultSet)
+    biasSet <- colMeans(resultSet) - c(0.5,1.5,logb(10),0.5,0.1,0.1,0.8)
     sdSet <- c(sd(resultSet[,1]),sd(resultSet[,2]),sd(resultSet[,3]),sd(resultSet[,4]),sd(resultSet[,5]),sd(resultSet[,6]),sd(resultSet[,7]))
     
     tblResultsGt <- matrix( c(biasSet[1],sdSet[1], biasSet[2],sdSet[2], biasSet[3],sdSet[3], biasSet[4],sdSet[4]), nrow = 1, ncol = 8 )
@@ -245,14 +245,3 @@ NrFails <- NROW(results[results[,10]==0, ])
 SlowConverges <- results[results[,2] > 10, ]
 #
 # Conclusion: Slow but Accurate in the end!
-
-results_2S <- results[results[,1]==1, ]  # Col#1 = 1, 2-Step
-results_Iter <- results[results[,1]==2, ]  # Col#1 = 2, Iterative
-
-summary(results_Iter[1:1000,(3:9)])  # V1-7: d0,d1,spd,loc, omega,alpha,beta
-summary(results_Iter[1:1000,2])  # Col2: Iteration Count
-
-calcStats(results_2S[1:1000,])
-calcStats(results_Iter[1:1000,])
-
-
