@@ -239,9 +239,29 @@ calcStats <- function(resultSet){
 results <- readRDS("T2000_Results_STW.RDS")
 
 # Any Failures?
-NrFails <- NROW(results[results[,10]==0, ])
+NrFails <- NROW(results[results[,10]==1, ])
 
 # Any high iteration/slow converging?
 SlowConverges <- results[results[,2] > 10, ]
+calcStats(SlowConverges)
 #
 # Conclusion: Slow but Accurate in the end!
+
+results_2S <- results[results[,1]==1, ]  # Col#1 = 1, 2-Step
+results_Iter <- results[results[,1]==2, ]  # Col#1 = 2, Iterative
+
+results_Valid_2S <- results_2S[results_2S[,10]==0, ]  # Filter out all models that diverged
+results_Valid_2S <- results_Valid_2S[1:1000,]                      # Take First 1000
+
+results_Valid_Iter <- results_Iter[results_Iter[,10]==0, ]  # Filter out all models that diverged
+results_Valid_Iter <- results_Valid_Iter[1:1000,]                      # Take First 1000
+
+summary(results_Iter[1:1000,(3:9)])  # V1-7: d0,d1,spd,loc, omega,alpha,beta
+summary(results_Iter[1:1000,2])  # Col2: Iteration Count
+
+calcStats(results_Valid_2S[1:1000,])
+calcStats(results_Valid_Iter[1:1000,])
+summary(results_Valid_Iter[1:1000,2])  # Col2: Iteration Count
+
+
+
