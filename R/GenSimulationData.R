@@ -8,7 +8,7 @@ library(MTVGARCH)   # Ver. 0.9.5.7
 setwd("C:\\Repos\\LSS_LackOfIdentification")
 
 set.seed(1984)
-Nr.Series <- 12000
+Nr.Series <- 1500
 
 ## noiseDist is a named-list describing the error-distribution and parameters - common to both
 noiseDist <- list()
@@ -39,6 +39,7 @@ GARCH$pars["beta",1] = 0.8
 
 # Generate series of simulated data, injected with this process:
 Ref_Data <- MTVGARCH::generateRefData(nr.series = Nr.Series,nr.obs = Tobs,tvObj = TV,garchObj = GARCH, corrObj = NULL,  noiseDist = noiseDist)
-saveRDS(Ref_Data,"T5000_Data.RDS")
+saveRDS(Ref_Data,"T5000_Data_Seed1984.RDS")
+saveRDS(Ref_Data[(1:2000),],"T2000_Data_Seed1984.RDS")
 
 
