@@ -133,12 +133,24 @@ calcStats <- function(resultSet){
 
 # Analyse results
 
-results <- readRDS("T2000_Results_lss_defStartPars.RDS")
+results <- readRDS("Results/T2000_Results_lss_defStartPars.RDS")
 
-# Diverged:
-divergentRes <- NROW(results[results[,1]==1000, ])
-#
+summary(results[,"speed1"])
+sd(results[,"speed1"])
 
+# Diverged Summary:
+divergentRes <- results[results[,1]==1000, ]
+summary(divergentRes)
+
+# Diverged Count:
+divergentNr <- NROW(results[results[,1]==1000, ])
+
+# Identify the series index that diverged
+divergentIDs <- results[results[,1]==1000, ]
+tmp <- row.names(divergentIDs[])
+tmp <- substr(a,8,length(tmp))
+divergentIDs <- as.integer(tmp)
+saveRDS(divergentIDs,"T2000_Results_lss_divergentIDs.RDS")
 
 results_InclBad <- results[1:1000, ]          # First 1000, include failed models
 results_Valid <- results[results[,1]<1000, ]  # Filter out all models that diverged
