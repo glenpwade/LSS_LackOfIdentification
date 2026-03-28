@@ -1,0 +1,8 @@
+>     mod_iter <- estimateTVGARCH_Iterate(e,mod,estCtrl)
+
+Starting Iterative TVGARCH Estimation...
+Error in h[t] <- (1 - this$Estimated$pars["alpha", 1] - this$Estimated$pars["alpha",  : 
+  replacement has length zero
+Warning message:
+In .estimateTV(e, tvObj, estimationControl, garchObj) :
+  estimateTV() - optim failed and returned NULL. Check the optim controls & starting params
