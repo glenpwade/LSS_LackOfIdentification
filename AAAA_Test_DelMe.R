@@ -1,4 +1,4 @@
-
+# START ####
 library(MTVGARCH)
 library(knitr)
 library(foreach)
@@ -6,6 +6,7 @@ library(doParallel)
 
 # Set a working directory
 setwd("C:\\Repos\\LSS_LackOfIdentification")
+#setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
 
 # Set constants
 Reps <- 20
@@ -67,7 +68,7 @@ GARCHspec$pars["omega",1] = runif(1,0.04,0.06)           # 0.50
 GARCHspec$pars["alpha",1] = runif(1,0.04,0.06)           # 0.50
 GARCHspec$pars["beta",1]  = runif(1,0.80,0.99)           # 0.90
 GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)
-GARCHspec$optimcontrol$ndeps <- c(1e-3,1e-5,1e-5)
+GARCHspec$optimcontrol$ndeps <- c(1e-5,1e-5,1e-5)
 
 # 1. Do initial Estimation of g(t) assuming h(t) = 1 AND omegafree = ON (default)
 GARCHspec@omegafree <- TRUE
@@ -81,6 +82,7 @@ GARCHspec@omegafree <- FALSE
 GARCH <- estimateGARCH(e,GARCHspec,estCtrl)
 summary(GARCH)
 
+# TVGARCH Estimation:  ####
 
 # 2. Specify a multiplicitive TV GARCH model specification using the TV & GARCH specification above
 mod <- MTVGARCH::tvgarch(TV,garchType = garchtype$general)
@@ -91,7 +93,7 @@ mod$garchpars["beta",1] = 0.90
 mod$garchOptimcontrol$parscale <- c(0.05,0.05,0.90)
 
 # 3. Since we are only doing one - let's see what's going on & calc parameter se's.
-estCtrl <- list(calcSE = FALSE, verbose = TRUE)
+estCtrl <- list(calcSE = TRUE, verbose = TRUE)
 
 # 4. Run the 2-Step estimation
 mod_2s <- MTVGARCH::estimateTVGARCH_2Step(e,mod,estCtrl)
