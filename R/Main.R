@@ -105,7 +105,7 @@ if(FALSE){
     
     estCtrl <- list(calcSE = TRUE, verbose = TRUE)  # Since we are only doing one - let's see what's going on & calc parameter se's.
     # Run the iterative estimation
-    mod <- MTVGARCH::estimateTVGARCH(e,mod,estCtrl,autoConverge = TRUE)
+    mod <- MTVGARCH::estimateTVGARCH(e,mod,estCtrl)
 
     # Check convergence & iterations:
     mod$Estimated$converged
@@ -190,7 +190,7 @@ results_Iter = foreach(i=1:Nr.Series,.combine = rbind,.inorder = TRUE,.packages 
     # Specify a multiplicitive tvgarch object using this TV obj and a general GARCH specification
     TVG <- MTVGARCH::tvgarch(TV,garchType = garchtype$general) 
     # Do Iterative estimation
-    TVG <- estimateTVGARCH(e,TVG,estCtrl,autoConverge = TRUE)
+    TVG <- estimateTVGARCH(e,TVG,estCtrl)
     
     # Extract the estimated parameters:
     tvpars <- TVG$Estimated$tv

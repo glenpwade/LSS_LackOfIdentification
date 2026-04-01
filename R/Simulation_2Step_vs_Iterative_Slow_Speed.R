@@ -62,7 +62,7 @@ parScale <- c(0.5,4.0,1.5,0.5)
 
 # Setup the parallel backend ####
 #numCores <- parallel::detectCores() - 4
-numCores <- 2
+numCores <- 5
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
@@ -151,7 +151,7 @@ results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = 
     
     # 3. Run the Iterative estimation
     mod$tvOptimcontrol$reltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
-    mod_iter <- estimateTVGARCH(e,mod,estCtrl,autoConverge = TRUE)
+    mod_iter <- estimateTVGARCH(e,mod,estCtrl)
     
     # 4. Extract the estimated parameters:
     tvpars <- mod_iter$Estimated$tv

@@ -162,7 +162,7 @@ if(FALSE){
     # 5. Run the iterative estimation
     # 5.1 But We don't need to calculate statistics for each iteration
     estCtrl <- list(calcSE = FALSE, verbose = TRUE) 
-    mod_iter <- MTVGARCH::estimateTVGARCH(e,mod,estCtrl,autoConverge = TRUE)
+    mod_iter <- MTVGARCH::estimateTVGARCH(e,mod,estCtrl)
 
     # Check convergence & iterations:
     mod_2s$Estimated$converged
