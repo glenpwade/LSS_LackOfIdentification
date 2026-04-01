@@ -40,13 +40,24 @@ if(FALSE){
     e = T2000_Data[,1]
     plot(e,type='l')
 
-    tvg_mod <- tvgarch::tvgarch(e,nr.trans = 1, trace = TRUE)
+    initVals <- list()
+    initVals$control <- list()
+
+    # sink(file="estimationOP.txt")  Write Output to file
+    tvg_mod <- tvgarch::tvgarch(e, initial.values = initVals, opt=2, turbo = TRUE, trace = TRUE)
+    # sink(file=NULL    # Revert Output to console
+    
+    # Garch Only
+    tvg_mod <- tvgarch::tvgarch(e, order.g = 0, turbo = TRUE, trace = TRUE, tvgarch = FALSE)
+    
+    # TV Only: (Force Garch to unit constant)
+    tvg_mod <- tvgarch::tvgarch(e, order.h = c(1,1,0), turbo = TRUE, trace = TRUE)
     
     summary(tvg_mod)
     plot(tvg_mod)
-    
+    toLatex(tvg_mod)
 }
-
+sink(file="estimationOP.txt")
 
 # Run Simulation:  ####
 
@@ -58,12 +69,10 @@ Sys.setenv("MC_CORES" = numCores)
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
-nr.trans <- 1
-
 results_defStartPars = foreach(i=1:Nr.Series,.combine = rbind,.inorder = TRUE,.packages = "tvgarch")%dopar%{
 
     # Using package default starting pars
-    tvg_mod <- tvgarch::tvgarch(T2000_Data[,i],nr.trans,turbo = TRUE)
+    tvg_mod <- tvgarch::tvgarch(T2000_Data[,i], opt=2, turbo = TRUE, trace = TRUE)
     # Return:
     c(tvg_mod$iter, coef(tvg_mod, "tvgarch"))
     
@@ -79,19 +88,23 @@ saveRDS(results_defStartPars,"T2000_Results_lss_defStartPars.RDS")
 if(FALSE){
     # Set start Pars
     initVals <- list()
-    initVals$intercept.g = 0.4  # delta0
-    initVals$size = 1.0         # delta1
-    initVals$speed = 2.0        # throws an error for values > 7 (suggests eta)
-    initVals$location = 0.4
-    #
-    initVals$intercept.h = 0.1  # omega
-    initVals$arch = 0.1         # alpha
-    initVals$garch = 0.8        # beta
+    # initVals$intercept.g = 0.4  # delta0
+    # initVals$size = 1.0         # delta1
+    # initVals$speed = 2.0        # throws an error for values > 7 (suggests eta)
+    # initVals$location = 0.4
+    # #
+    # initVals$intercept.h = 0.1  # omega
+    # initVals$arch = 0.1         # alpha
+    # initVals$garch = 0.8        # beta
+    
+    initVals$control <- list()
+    initVals$control$maxit <- 2
+    
     
     results_setStartPars = foreach(i=1:Nr.Series,.combine = rbind,.inorder = FALSE,.packages = "tvgarch")%dopar%{
         
         # Do first iteration of estimation:
-        tvg_mod <- tvgarch::tvgarch(T2000_Data[,i],nr.trans,initial.values = initVals,turbo = TRUE)
+        tvg_mod <- tvgarch::tvgarch(T2000_Data[,i], initial.values = initVals, opt=2, turbo = TRUE, trace = TRUE)
         # Return:
         c(tvg_mod$iter, coef(tvg_mod, "tvgarch"))
     }
@@ -148,7 +161,7 @@ divergentNr <- NROW(results[results[,1]==1000, ])
 # Identify the series index that diverged
 divergentIDs <- results[results[,1]==1000, ]
 tmp <- row.names(divergentIDs[])
-tmp <- substr(a,8,length(tmp))
+tmp <- substr(tmp,8,length(tmp))
 divergentIDs <- as.integer(tmp)
 saveRDS(divergentIDs,"T2000_Results_lss_divergentIDs.RDS")
 
@@ -158,6 +171,11 @@ results_Valid <- results_Valid[1:1000,]       # Take First 1000
 
 sillyReport <- calcStats(results_InclBad)
 stdReport <- calcStats(results_Valid)
+
+# Save as Excel workbook:
+#write.xlsx(results,"LSS_SimResults.xlsx",sheetName = "FullSimResults")
+write.xlsx(results_InclBad,"LSS_SimResults.xlsx",sheetName = "LSS_Result_InclDiv",append=TRUE)
+write.xlsx(results_Valid,"LSS_SimResults.xlsx",sheetName = "LSS_Result_Cleaned",append=TRUE)
 
 
 
