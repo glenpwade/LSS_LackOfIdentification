@@ -29,6 +29,7 @@ try(detach("package:tvgarch", unload = TRUE, character.only = TRUE))
 # Load required packages
 library(MTVGARCH)   # Ver. 0.9.5.7
 library(knitr)
+library(xlsx)
 
 # Set a working directory
 setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
@@ -266,9 +267,18 @@ calcStats(results_Valid_2S[1:1000,])
 calcStats(results_Valid_Iter[1:1000,])
 summary(results_Valid_Iter[1:1000,2])  # Col2: Iteration Count
 
+## Compare eta & gamma std Dev:
+calcStats2(results_Valid_2S[1:1000,])
+calcStats2(results_Valid_Iter[1:1000,])
+
+
 summary(results[,"spd"])
 sd(results[,"spd"])
 
+# Save as Excel workbook:
+write.xlsx(results,"LSS_SimResults.xlsx",sheetName = "FullSimResults")
+write.xlsx(results_Valid_2S,"LSS_SimResults.xlsx",sheetName = "ValidResults_2S",append=TRUE)
+write.xlsx(results_Valid_Iter,"LSS_SimResults.xlsx",sheetName = "ValidResults_Iter",append=TRUE)
 
 
 
@@ -296,3 +306,46 @@ calcStats(results_Iter[1:1000,])
 # CONCLUSION:
 #
 # Removing the instances where Speed runs to the boundary, produces the best results
+
+
+
+
+# Calc sd(speed.eta) & sd(speed.gamma):  ####
+
+calcStats2 <- function(resultSet){
+    
+    # debug:
+    # resultSet <- results
+    
+    resultSet <- resultSet[,c(3:9)]  #Extract the parameters
+    
+    biasSet1 <- colMeans(resultSet[,c(1:3)]) - c(0.5,1.5,logb(10) )
+    biasSet2 <- matrix(mean(resultSet[,3] - 10),ncol = 1)
+    biasSet3 <- colMeans(resultSet[,c(4:7)]) - c(0.5,0.1,0.1,0.8)
+    biasSet <- c(biasSet1,biasSet2,biasSet3)
+    sdSet <- c(sd(resultSet[,1]),sd(resultSet[,2]),sd(resultSet[,3]),sd(exp(resultSet[,3])),sd(resultSet[,4]),sd(resultSet[,5]),sd(resultSet[,6]),sd(resultSet[,7]))
+    
+    tblResultsGt <- matrix( c(biasSet[1],sdSet[1], biasSet[2],sdSet[2], biasSet[3],sdSet[3], biasSet[4],sdSet[4], biasSet[5],sdSet[5]), nrow = 1, ncol = 10 )
+    colnames(tblResultsGt) <- c("d0","d0_se","d1","d1_se","spd(eta)","spd(eta)_se","spd(gam)","spd(gam)_se","loc","loc_se")
+    rownames(tblResultsGt) <- c("meanBias, se: ")
+    
+    tblResultsHt <- matrix( c(biasSet[6],sdSet[6], biasSet[7],sdSet[7], biasSet[8],sdSet[8] ), nrow = 1, ncol = 6 )
+    colnames(tblResultsHt) <- c("omega","omega_se","alpha","alpha_se","beta","beta_se")
+    rownames(tblResultsHt) <- c("meanBias, se: ")
+    
+    resTableG <- kable(round(tblResultsGt,4),caption="g(t)")
+    resTableH <- kable(round(tblResultsHt,4),caption="h(t)")
+    
+    print(resTableG)
+    print(resTableH)
+    
+}
+
+
+res_gamma <- exp(results[,3])
+res_gamma_se <- sd(res_gamma)
+tblResGamma <- kable(matrix(c(round(mean(res_gamma),4),round(res_gamma_se,4)),ncol=2),caption = c("mean_gamma","mean_gamma_se") )
+print(tblResGamma)
+
+logb(10)
+exp(2.302585)
