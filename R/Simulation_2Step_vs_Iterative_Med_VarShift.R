@@ -46,11 +46,8 @@ if(FALSE)
 }
 
 # Initialise ####
-<<<<<<< HEAD
 library(MTVGARCH)   # Ver. 0.9.7.27
-=======
-library(MTVGARCH)   # Ver. 0.9.8.27
->>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
+
 library(knitr)
 library(foreach)
 library(doParallel)
@@ -69,32 +66,22 @@ iterRelTol <- 1e-5  #Convergence tolerance for Iterative estimator
 
 # START SIMS HERE: ####
 
-<<<<<<< HEAD
+
 # # Setup the parallel backend ####
  numCores <- parallel::detectCores() - 2
  #numCores <- 8
  cl <- makeCluster(numCores)
  registerDoParallel(cl, cores = numCores)
-=======
-# Setup the parallel backend ####
-numCores <- parallel::detectCores() - 1
-#numCores <- 8
-cl <- makeCluster(numCores)
-registerDoParallel(cl, cores = numCores)
->>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
+
 
 # Run the Simulation:  ####
 
 # Set the iteration count
 #Reps <- 80    # Simulate 3000 estimations - set lower for debugging any parallel issues
 # Set the estimation controls to suppress console output
-<<<<<<< HEAD
 estCtrl <- list(calcSE=FALSE, verbose=TRUE, maxIter=2, fixStartPars=TRUE, startparAdjust=100)
 
 # ---  GET DATA  --- #
-=======
-estCtrl <- list(calcSE=FALSE, verbose=TRUE, maxIter=100, fixStartPars=FALSE, startparAdjust=10)
->>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
 
 fileName = "T2000_Med_VarShift"
 filePath = paste0(".\\SimSourceData\\",fileName,".RDS")
@@ -113,23 +100,15 @@ TVspec$pars["speedN",1] = log(10)
 TVspec$pars["locN1",1] = 0.5
 TVspec$optimcontrol$parscale <- c(0.5,4.0,log(10),0.5)
 
-<<<<<<< HEAD
+
 # ---  GARCH  --- #
 
-=======
->>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
 GARCHspec <- garch(garchtype$general)
 GARCHspec$pars["omega",1] = runif(1,0.04,0.06)           # 0.50
 GARCHspec$pars["alpha",1] = runif(1,0.04,0.06)           # 0.50
 GARCHspec$pars["beta",1]  = runif(1,0.80,0.99)           # 0.90
 GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)
 GARCHspec$optimcontrol$ndeps <- c(1e-5,1e-5,1e-5)
-<<<<<<< HEAD
- 
-# # Save the results for reporting:  (Col:1 'EstimationMethod': Two-Step=1, Iterative=2), (Col10: 'EstimationError': 0(FALSE) / 1(TRUE))
-# pars <- matrix(NA,nrow=Reps,ncol=10)
-# colnames(pars) <- c("EstMethod","NrIterations","d0","d1","spd","loc","omega","alpha","beta","EstError")
-=======
 
 
 #Reps <- 80
@@ -137,7 +116,7 @@ GARCHspec$optimcontrol$ndeps <- c(1e-5,1e-5,1e-5)
 # Save the results for reporting:  (Col:1 'EstimationMethod': Two-Step=1, Iterative=2), (Col10: 'EstimationError': 0(FALSE) / 1(TRUE))
 pars <- matrix(NA,1,10)
 colnames(pars) <- c("EstMethod","NrIterations","d0","d1","spd","loc","omega","alpha","beta","EstError")
->>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
+
 
 rm(mod_2s)
 rm(mod_iter)
@@ -145,17 +124,15 @@ rm(mod_iter)
 # 2-STEP: ####
 cat("\nTWO-STEP:\n")
 timestamp()
-<<<<<<< HEAD
-results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = c("MTVGARCH"), .verbose = FALSE)%dopar%{
-=======
+
 # debug: results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", verbose=TRUE)%do%{
 results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{
->>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
+
 
     #debug: i=20
     e = simData[,i]
 
-<<<<<<< HEAD
+
     # Specify a multiplicitive TV GARCH model specification using the TV & GARCH specifications
     mod <- tvgarch(TVspec,GARCHspec) 
     mod$iterationReltol <- iterRelTol
@@ -166,7 +143,7 @@ results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "M
     
     # Return:
     c(1,mod_2s@iterations,mod_2s$Estimated$tv$delta0,mod_2s$Estimated$tv$pars[1:3,1],mod_2s$Estimated$garch$pars,as.numeric(!(mod_2s$Estimated$converged)) )
-=======
+
     # 1. Do initial Estimation of g(t) assuming h(t) = 1
     estCtrl$maxIter <- 2
     
@@ -182,7 +159,7 @@ results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "M
     garchpars <- mod_2s$Estimated$garch
     # Return
     c(1,mod_2s@iterations,tvpars$delta0,tvpars$pars[1:3],garchpars$pars,as.numeric(!(mod_2s$Estimated$converged)) )
->>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
+
     
     # Note: Any failed estimations will be identified in the last column, so the unestimated parameters can be excluded
 
@@ -190,31 +167,6 @@ results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "M
 timestamp()  # ~1 min
 colnames(results_2S) <- c("EstMethod","NrIterations","d0","d1","spd","loc","omega","alpha","beta","EstError")
 
-<<<<<<< HEAD
-# 
-# # ITERATIVE: ####
-# cat("\nITERATIVE:\n")
-# timestamp()
-# results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .verbose = FALSE)%dopar%{
-#     
-#     e = simData[,i]
-# 
-#     # Specify a multiplicitive TV GARCH model specification using the TV & GARCH specifications
-#     mod <- tvgarch(TVspec,GARCHspec) 
-#     mod$iterationReltol <- iterRelTol
-#     
-#     # 3. Run the Iterative estimation
-#     estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=100, fixStartPars=FALSE, startparAdjust=100)
-#     mod_iter <- estimateTVGARCH(e,mod,estCtrl)
-#     
-#     # Return:
-#     # Note: Any failed estimations will be identified in the last column, so the unestimated parameters can be excluded
-#     c(2,mod_iter@iterations,mod_iter$Estimated$tv$delta0,mod_iter$Estimated$tv$pars[1:3,1],mod_iter$Estimated$garch$pars,as.numeric(!(mod_iter$Estimated$converged)) )
-#     
-# }
-# timestamp()  # ~? mins
-# colnames(results_Iter) <- c("EstMethod","NrIterations","d0","d1","spd","loc","omega","alpha","beta","EstError")
-=======
 # ITERATIVE: ####
 cat("\nITERATIVE:\n")
 timestamp()
@@ -241,7 +193,7 @@ results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = 
     
 }
 timestamp()  # ~? mins
->>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
+
 
 # Stop the parallel cluster & remove 'cl'  
 # Note: Best to not run this when executing in Parallel Mode / Background Job.  Wait until all tasks/jobs complete, then tidy Up
