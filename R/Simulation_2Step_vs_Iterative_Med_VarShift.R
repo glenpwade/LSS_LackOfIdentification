@@ -46,12 +46,15 @@ if(FALSE)
 }
 
 # Initialise ####
-library(MTVGARCH)   # Ver. 0.9.6.1
+library(MTVGARCH)   # Ver. 0.9.8.27
+library(knitr)
 library(foreach)
 library(doParallel)
 
 # Set a working directory
-setwd("C:\\Repos\\LSS_LackOfIdentification")
+#setwd("C:\\Repos\\LSS_LackOfIdentification")
+
+setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
 
 # Set constants
 Reps <- 3000
@@ -60,8 +63,8 @@ Tobs <- 2000
 # START SIMS HERE: ####
 
 # Setup the parallel backend ####
-#numCores <- parallel::detectCores() - 4
-numCores <- 2
+numCores <- parallel::detectCores() - 1
+#numCores <- 8
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
@@ -70,7 +73,7 @@ registerDoParallel(cl, cores = numCores)
 # Set the iteration count 
 #Reps <- 50    # Simulate 3000 estimations - set lower for debugging any parallel issues
 # Set the estimation controls to suppress console output
-estCtrl <- list(calcSE = FALSE, verbose = FALSE)
+estCtrl <- list(calcSE=FALSE, verbose=TRUE, maxIter=100, fixStartPars=FALSE, startparAdjust=10)
 
 # Get the data:
 fileName = "T2000_Med_VarShift"
@@ -82,91 +85,91 @@ Tobs = NROW(simData)
 st = (1:Tobs)/Tobs
 shape = tvshape$single
 # Create the TV Specification and set starting params to match the loaded Dataset
-TVspec <- MTVGARCH::tv(st,shape)
+TVspec <- tv(st,shape)
 TVspec$delta0 = 0.5
 TVspec$pars["deltaN",1] = 4.0
 TVspec$pars["speedN",1] = log(10)
 TVspec$pars["locN1",1] = 0.5
 TVspec$optimcontrol$parscale <- c(0.5,4.0,2.3,0.5)
 
+GARCHspec <- garch(garchtype$general)
+GARCHspec$pars["omega",1] = runif(1,0.04,0.06)           # 0.50
+GARCHspec$pars["alpha",1] = runif(1,0.04,0.06)           # 0.50
+GARCHspec$pars["beta",1]  = runif(1,0.80,0.99)           # 0.90
+GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)
+GARCHspec$optimcontrol$ndeps <- c(1e-5,1e-5,1e-5)
+
+
+#Reps <- 80
+
 # Save the results for reporting:  (Col:1 'EstimationMethod': Two-Step=1, Iterative=2), (Col10: 'EstimationError': 0(FALSE) / 1(TRUE))
 pars <- matrix(NA,1,10)
 colnames(pars) <- c("EstMethod","NrIterations","d0","d1","spd","loc","omega","alpha","beta","EstError")
 
+rm(mod_2s)
+rm(mod_iter)
+
 # 2-STEP: ####
 cat("\nTWO-STEP:\n")
 timestamp()
+# debug: results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", verbose=TRUE)%do%{
 results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{
 
+    #debug: i=20
     e = simData[,i]
 
     # 1. Do initial Estimation of g(t) assuming h(t) = 1
-    TV <- estimateTV(e,TVspec,estCtrl)
-    TV$optimcontrol$parscale <- c(0.5,4.0,2.3,0.5)
+    estCtrl$maxIter <- 2
     
     # 2. Specify a multiplicitive TV GARCH model specification using the TV & GARCH specification
-    mod <- MTVGARCH::tvgarch(TV,garchType = garchtype$general) 
-    # 2.1 We need to set the Garch starting pars, before estimating the model:
-    mod$garchpars["omega",1] = 0.05 
-    mod$garchpars["alpha",1] = 0.05 
-    mod$garchpars["beta",1] = 0.90
-    mod$garchOptimcontrol$parscale <- c(0.05,0.05,0.90)
+    mod <- tvgarch(TVspec,GARCHspec) 
     
     # 3. Run the 2-Step estimation
-    mod$tvOptimcontrol$reltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
-    mod_2s <- MTVGARCH::estimateTVGARCH_2Step(e,mod,estCtrl)
+    mod$iterationReltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
+    mod_2s <- estimateTVGARCH(e,mod,estCtrl)
     
     # 4. Extract the estimated parameters:
     tvpars <- mod_2s$Estimated$tv
     garchpars <- mod_2s$Estimated$garch
-    pars[1,] <- c(2,mod_2s@iterations,tvpars$delta0,tvpars$pars[1:3],garchpars$pars,as.numeric(!(mod_2s$Estimated$converged)) )
+    # Return
+    c(1,mod_2s@iterations,tvpars$delta0,tvpars$pars[1:3],garchpars$pars,as.numeric(!(mod_2s$Estimated$converged)) )
     
     # Note: Any failed estimations will be identified in the last column, so the unestimated parameters can be excluded
 
-    # Return:
-    pars
-    
 }
 timestamp()  # ~1 min
 
 # ITERATIVE: ####
 cat("\nITERATIVE:\n")
 timestamp()
-results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{
-    
+# debug: results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", verbose=TRUE)%do%{
+results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{    
     e = simData[,i]
-
-    # Do initial Estimation of g(t) assuming h(t) = 1
-    TV <- estimateTV(e,TVspec,estCtrl)
-    TV$optimcontrol$parscale <- c(0.5,4.0,2.3,0.5)
+    
+    # 1. Do initial Estimation of g(t) assuming h(t) = 1
+    estCtrl$maxIter <- 100
+    estCtrl$startparAdjust <- 10
     
     # 2. Specify a multiplicitive TV GARCH model specification using the TV & GARCH specification
-    mod <- MTVGARCH::tvgarch(TV,garchType = garchtype$general) 
-    # 2.1 We need to set the Garch starting pars, before estimating the model:
-    mod$garchpars["omega",1] = 0.05 
-    mod$garchpars["alpha",1] = 0.05 
-    mod$garchpars["beta",1] = 0.90
-    mod$garchOptimcontrol$parscale <- c(0.05,0.05,0.90)
+    mod <- tvgarch(TVspec,GARCHspec) 
     
-    # 3. Run the Iterative estimation
-    mod$tvOptimcontrol$reltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
-    mod_iter <- estimateTVGARCH_Iterate(e,mod,estCtrl)
+    # 3. Run the 2-Step estimation
+    mod$iterationReltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
+    mod_iter <- estimateTVGARCH(e,mod,estCtrl)
     
     # 4. Extract the estimated parameters:
     tvpars <- mod_iter$Estimated$tv
     garchpars <- mod_iter$Estimated$garch
-    pars[1,] <- c(2,mod_iter@iterations,tvpars$delta0,tvpars$pars[1:3],garchpars$pars,as.numeric(!(mod_iter$Estimated$converged)) )
-    
-    # Return:
-    pars
+    # Return
+    c(2,mod_iter@iterations,tvpars$delta0,tvpars$pars[1:3],garchpars$pars,as.numeric(!(mod_iter$Estimated$converged)) )
     
 }
 timestamp()  # ~? mins
 
 # Stop the parallel cluster & remove 'cl'  
 # Note: Best to not run this when executing in Parallel Mode / Background Job.  Wait until all tasks/jobs complete, then tidy Up
-# stopCluster(cl)
-# rm(cl)
+ stopCluster(cl)
+ rm(cl)
 
 # Save Results ####
 
