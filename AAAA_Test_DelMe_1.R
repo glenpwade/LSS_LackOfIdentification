@@ -5,8 +5,13 @@ library(foreach)
 library(doParallel)
 
 # Set a working directory
+<<<<<<< HEAD
 #setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
 setwd("C:\\Repos\\LSS_LackOfIdentification")
+=======
+setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
+#setwd("C:\\Repos\\LSS_LackOfIdentification")
+>>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
 
 # Set constants
 Reps <- 30
@@ -52,9 +57,20 @@ TVspec$optimcontrol$parscale <- TVparScale
 TVspec$optimcontrol$ndeps <- c(1e-3,1e-5,1e-5,1e-3)
 
 # 1. Do initial Estimation of g(t) assuming h(t) = 1 AND delta0free = ON (default)
+<<<<<<< HEAD
 TVspec@delta0free <- TRUE
 estCtrl <- list(calcSE = F, verbose = TRUE)
 TV <- estimateTV(e,TVspec,estCtrl)
+=======
+#TVspec@delta0free <- TRUE
+estCtrl <- list(calcSE = FALSE, verbose = TRUE)
+# Test estimateTV(- overloads-)
+TV <- estimateTV(e,TVspec)
+TV <- estimateTV(e,TVspec,estCtrl)
+GARCHspec <- garch(garchtype$general)
+TV <- estimateTV(e,TVspec,GARCHspec,estCtrl)
+
+>>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
 summary(TV)
 plot(TV)
 
@@ -74,8 +90,15 @@ GARCHspec$pars["beta",1]  = runif(1,0.80,0.99)           # 0.90
 GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)
 GARCHspec$optimcontrol$ndeps <- c(1e-5,1e-5,1e-5)
 
+<<<<<<< HEAD
 # 1. Do initial Estimation of g(t) assuming h(t) = 1 AND omegafree = ON (default)
 GARCHspec@omegafree <- TRUE
+=======
+GARCHspec$pars[2,1] + GARCHspec$pars[3,1]
+
+# 1. Do initial Estimation of g(t) assuming h(t) = 1 AND omegafree = ON (default)
+#GARCHspec@omegafree <- TRUE
+>>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
 estCtrl <- list(calcSE = TRUE, verbose = TRUE)
 GARCH <- estimateGARCH(e,GARCHspec,estCtrl)
 summary(GARCH)
@@ -86,6 +109,17 @@ GARCHspec@omegafree <- FALSE
 GARCH <- estimateGARCH(e,GARCHspec,estCtrl)
 summary(GARCH)
 
+<<<<<<< HEAD
+=======
+# Test estimateGARCH(- overloads-)
+GARCH <- estimateGARCH(e,GARCHspec)
+GARCH <- estimateGARCH(e,GARCHspec,estCtrl)    # TODO: No console output - Why??
+GARCH <- estimateGARCH(e,TVspec,GARCHspec,estCtrl)
+
+summary(GARCH)
+plot(GARCH)
+
+>>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
 # TVGARCH Estimation:  ####
 
 
@@ -124,8 +158,13 @@ mod_2s <- mod
 for(n in 1:Reps){
     
     e <- simData[,n]
+<<<<<<< HEAD
      mod_2s <- estimateTVGARCH_2Step(e,mod_2s,estCtrl)
      pars[n,] <- c(1,mod_2s@iterations,mod_2s$Estimated$tv$delta0,mod_2s$Estimated$tv$pars[1:3,1],mod_2s$Estimated$garch$pars,as.numeric(!(mod_2s$Estimated$converged)) )
+=======
+    mod_2s <- estimateTVGARCH_2Step(e,mod_2s,estCtrl)
+    pars[n,] <- c(1,mod_2s@iterations,mod_2s$Estimated$tv$delta0,mod_2s$Estimated$tv$pars[1:3,1],mod_2s$Estimated$garch$pars,as.numeric(!(mod_2s$Estimated$converged)) )
+>>>>>>> 6f5e4b6b2836863d58ff53f665984540f67db946
     # 
     #mod_Iter <- estimateTVGARCH_Iterate(e,mod,estCtrl)
     #pars[n,] <- c(1,mod_Iter@iterations,mod_Iter$Estimated$tv$delta0,mod_Iter$Estimated$tv$pars[1:3,1],mod_Iter$Estimated$garch$pars,as.numeric(!(mod_Iter$Estimated$converged)) )
