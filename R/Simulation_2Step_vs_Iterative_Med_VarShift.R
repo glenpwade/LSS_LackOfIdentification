@@ -46,8 +46,7 @@ if(FALSE)
 }
 
 # Initialise ####
-library(MTVGARCH)   # Ver. 0.9.7.27
-
+library(MTVGARCH)   # Ver. 0.9.8.27
 library(knitr)
 library(foreach)
 library(doParallel)
@@ -60,35 +59,28 @@ setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
 # Set constants
 Reps <- 3000
 Tobs <- 2000
-GARCHparScale <- c(0.05,0.05,0.90)
-TVparScale <- c(0.5,4.0,log(10),0.5)
-iterRelTol <- 1e-5  #Convergence tolerance for Iterative estimator
 
 # START SIMS HERE: ####
 
-
-# # Setup the parallel backend ####
- numCores <- parallel::detectCores() - 2
- #numCores <- 8
- cl <- makeCluster(numCores)
- registerDoParallel(cl, cores = numCores)
-
+# Setup the parallel backend ####
+numCores <- parallel::detectCores() - 1
+#numCores <- 8
+cl <- makeCluster(numCores)
+registerDoParallel(cl, cores = numCores)
 
 # Run the Simulation:  ####
 
-# Set the iteration count
-#Reps <- 80    # Simulate 3000 estimations - set lower for debugging any parallel issues
+# Set the iteration count 
+#Reps <- 50    # Simulate 3000 estimations - set lower for debugging any parallel issues
 # Set the estimation controls to suppress console output
-estCtrl <- list(calcSE=FALSE, verbose=TRUE, maxIter=2, fixStartPars=TRUE, startparAdjust=100)
+estCtrl <- list(calcSE=FALSE, verbose=TRUE, maxIter=100, fixStartPars=FALSE, startparAdjust=10)
 
-# ---  GET DATA  --- #
-
+# Get the data:
 fileName = "T2000_Med_VarShift"
 filePath = paste0(".\\SimSourceData\\",fileName,".RDS")
 simData <- readRDS(filePath)
 
-# ---  TV  --- #
-
+# Create the TV Specification - to be estimated later:
 Tobs = NROW(simData)
 st = (1:Tobs)/Tobs
 shape = tvshape$single
@@ -98,10 +90,7 @@ TVspec$delta0 = 0.5
 TVspec$pars["deltaN",1] = 4.0
 TVspec$pars["speedN",1] = log(10)
 TVspec$pars["locN1",1] = 0.5
-TVspec$optimcontrol$parscale <- c(0.5,4.0,log(10),0.5)
-
-
-# ---  GARCH  --- #
+TVspec$optimcontrol$parscale <- c(0.5,4.0,2.3,0.5)
 
 GARCHspec <- garch(garchtype$general)
 GARCHspec$pars["omega",1] = runif(1,0.04,0.06)           # 0.50
@@ -117,32 +106,17 @@ GARCHspec$optimcontrol$ndeps <- c(1e-5,1e-5,1e-5)
 pars <- matrix(NA,1,10)
 colnames(pars) <- c("EstMethod","NrIterations","d0","d1","spd","loc","omega","alpha","beta","EstError")
 
-
 rm(mod_2s)
 rm(mod_iter)
 
 # 2-STEP: ####
 cat("\nTWO-STEP:\n")
 timestamp()
-
 # debug: results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", verbose=TRUE)%do%{
 results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{
 
-
     #debug: i=20
     e = simData[,i]
-
-
-    # Specify a multiplicitive TV GARCH model specification using the TV & GARCH specifications
-    mod <- tvgarch(TVspec,GARCHspec) 
-    mod$iterationReltol <- iterRelTol
-    
-    # 3. Run the 2-Step estimation
-    estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=2, fixStartPars=FALSE, startparAdjust=100)
-    mod_2s <- estimateTVGARCH(e,mod,estCtrl)
-    
-    # Return:
-    c(1,mod_2s@iterations,mod_2s$Estimated$tv$delta0,mod_2s$Estimated$tv$pars[1:3,1],mod_2s$Estimated$garch$pars,as.numeric(!(mod_2s$Estimated$converged)) )
 
     # 1. Do initial Estimation of g(t) assuming h(t) = 1
     estCtrl$maxIter <- 2
@@ -159,13 +133,11 @@ results_2S = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "M
     garchpars <- mod_2s$Estimated$garch
     # Return
     c(1,mod_2s@iterations,tvpars$delta0,tvpars$pars[1:3],garchpars$pars,as.numeric(!(mod_2s$Estimated$converged)) )
-
     
     # Note: Any failed estimations will be identified in the last column, so the unestimated parameters can be excluded
 
 }
 timestamp()  # ~1 min
-colnames(results_2S) <- c("EstMethod","NrIterations","d0","d1","spd","loc","omega","alpha","beta","EstError")
 
 # ITERATIVE: ####
 cat("\nITERATIVE:\n")
@@ -194,7 +166,6 @@ results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = 
 }
 timestamp()  # ~? mins
 
-
 # Stop the parallel cluster & remove 'cl'  
 # Note: Best to not run this when executing in Parallel Mode / Background Job.  Wait until all tasks/jobs complete, then tidy Up
  stopCluster(cl)
@@ -202,60 +173,12 @@ timestamp()  # ~? mins
 
 # Save Results ####
 
- resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
- #results <- rbind(results_2S,results_Iter)
- results <- results_2S
- saveRDS(results,resPath)             #STW: Silvennoinen, Terasvirta, Wade
+resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
+saveRDS(rbind(results_2S,results_Iter),resPath)             #STW: Silvennoinen, Terasvirta, Wade
 
-
-# # Analyse the Results:  ####
-# 
-# library(MTVGARCH)   # Ver. 0.9.6.1
-# library(knitr)
-# 
-# calcStats <- function(resultSet,TVpars,Garchpars) {
-# 
-#     # Debug:
-#     if(FALSE){
-#         resultSet = results_2S
-#         resultSet = results_Iter
-#         TVpars = TVparScale
-#         Garchpars = GARCHparScale
-#     }
-#     #
-# 
-#     resultSet <- resultSet[,c(3:9)]  #Extract the parameters
-# 
-#     biasSet <- colMeans(resultSet) - c(TVpars,Garchpars)
-#     sdSet <- c(sd(resultSet[,1]),sd(resultSet[,2]),sd(resultSet[,3]),sd(resultSet[,4]),sd(resultSet[,5]),sd(resultSet[,6]),sd(resultSet[,7]))
-# 
-#     tblResultsGt <- matrix( c(biasSet[1],sdSet[1], biasSet[2],sdSet[2], biasSet[3],sdSet[3], biasSet[4],sdSet[4]), nrow = 1, ncol = 8 )
-#     colnames(tblResultsGt) <- c("d0","d0_se","d1","d1_se","spd","spd_se","loc","loc_se")
-#     rownames(tblResultsGt) <- c("meanBias, se: ")
-# 
-#     tblResultsHt <- matrix( c(biasSet[5],sdSet[5], biasSet[6],sdSet[6], biasSet[7],sdSet[7] ), nrow = 1, ncol = 6 )
-#     colnames(tblResultsHt) <- c("omega","omega_se","alpha","alpha_se","beta","beta_se")
-#     rownames(tblResultsHt) <- c("meanBias, se: ")
-# 
-#     resTableG <- kable(round(tblResultsGt,4),caption="g(t)")
-#     resTableH <- kable(round(tblResultsHt,4),caption="h(t)")
-# 
-#     print(resTableG)
-#     print(resTableH)
-# 
-# }
-# 
-# resfileName = paste0("result_",fileName)
-# resPath = paste0(".\\SimResults\\", "result_T2000_LSS_paper", ".RDS")
 # results <- readRDS(resPath)
-# #
-# GARCHparScale <- c(0.05,0.05,0.90)
-# TVparScale <- c(0.5,4.0,log(10),0.5)
-# 
-# # Remove any simulation runs that threw an error:
-# sum(results[,10])
-# 
-# stdReport <- calcStats(results_2S,TVparScale,GARCHparScale)
-# 
-# 
-# 
+# stdReport <- calcStats(results)
+
+
+
+
