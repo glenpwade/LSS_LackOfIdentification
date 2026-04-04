@@ -1,4 +1,5 @@
-{#Introduction  ####
+if(FALSE)
+{
 #
 # Journal of Time Series Analysis:
 # Robust Estimation and Inference for Time-Varying Unconditional Volatility
@@ -56,14 +57,14 @@ library(doParallel)
 setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
 
 # Set constants
-Reps <- 3000
+Reps <- 100
 Tobs <- 2000
 
 # START SIMS HERE: ####
 
 # Setup the parallel backend ####
 #numCores <- parallel::detectCores() - 2
-numCores <- 10
+numCores <- 5
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
@@ -110,27 +111,27 @@ GARCHspec$optimcontrol$ndeps <- c(1e-3,1e-3,1e-3)
 # 2-STEP: ####
 cat("\nTWO-STEP:\n")
 timestamp()
-results_2s = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{
-    
-    #results = foreach(i=91:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", .verbose=TRUE)%do%{
-    
+results = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{
+
+#results = foreach(i=91:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", .verbose=TRUE)%do%{
+
     e = simData[,i]
     
     #cat("\nStarting to do e(n) = ", i, "\n")
-    
+
     # 1. Set desired Iterations & calc the "true" process LogLik Value
     estCtrl$maxIter <- 1      # Equal to LSS 2-Step
     myG <- calculate_g(TVspec)
     myH <- calculate_h(e,GARCHspec)
     processLoglik <- unname(loglik.tvgarch.univar(e,myG,myH))
-    
+
     # 2. Specify a multiplicitive TV GARCH model specification using the TV & GARCH specification
     mod <- tvgarch(TVspec,GARCHspec)
-    
+
     # 3. Run the 2-Step estimation
     mod$iterationReltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
     mod_2s <- estimateTVGARCH(e,mod,estCtrl)
-    
+
     # 4. Extract the estimated parameters:
     if(!(is.null(mod_2s))){
         
@@ -146,66 +147,24 @@ results_2s = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "M
         c(2,mod$tvdelta0,mod$tvpars[1:3],mod$garchpars,1,Inf )
     }
     
-    
+
 }
-timestamp()
-
-# # ITERATIVE: ####
-# cat("\nITERATIVE:\n")
-# timestamp()
-# # debug
-# #
-# 
-# results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", verbose=TRUE)%do%{
-
-results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{    
-    
-e = simData[,i]
-
-#cat("\nStarting to do e(n) = ", i, "\n")
-
-# 1. Set desired Iterations & calc the "true" process LogLik Value
-estCtrl$maxIter <- 100
-myG <- calculate_g(TVspec)
-myH <- calculate_h(e,GARCHspec)
-processLoglik <- unname(loglik.tvgarch.univar(e,myG,myH))
-
-# 2. Specify a multiplicitive TV GARCH model specification using the TV & GARCH specification
-mod <- tvgarch(TVspec,GARCHspec)
-
-# 3. Run the 2-Step estimation
-mod$iterationReltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
-mod_iter <- estimateTVGARCH(e,mod,estCtrl)
-
-# 4. Extract the estimated parameters:
-if(!(is.null(mod_iter))){
-    
-    tvpars <- mod_iter$Estimated$tv
-    garchpars <- mod_iter$Estimated$garch
-    # Return
-    nr.iterations <- mod_iter@iterations  # Need to avoid the @ in the line below, as the foreach() wrapup (rbind) cannot access the model after the fact
-    c(nr.iterations,tvpars$delta0,tvpars$pars[1:3],garchpars$pars,as.numeric(!(mod_iter$Estimated$converged)),(processLoglik - unname(mod_iter$Estimated$value)) )
-    
-    # Note: Any failed estimations will be identified in the last column, so the unestimated parameters can be excluded
-}else{
-    # Just add the starting pars and set failed column = 1, loglik.value difference = Inf
-    c(2,mod$tvdelta0,mod$tvpars[1:3],mod$garchpars,1,Inf )
-}
+timestamp()  # ~1 min
 
 # Stop the parallel cluster & remove 'cl'  
 # Note: Best to not run this when executing in Parallel Mode / Background Job.  Wait until all tasks/jobs complete, then tidy Up
- stopCluster(cl)
- rm(cl)
-# 
-# # Save Results ####
-# 
-resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
-saveRDS(rbind(results_2S,results_Iter),resPath)             #STW: Silvennoinen, Terasvirta, Wade
+stopCluster(cl)
+rm(cl)
 
-# # Identify 2-Step by the IterationCount column1.  Should=1 or 2, depending on 2-Step definition. Or 2+ for Iterative
-# 
-# # results <- readRDS(resPath)
-# # stdReport <- calcStats(results)
+# Save Results ####
+
+resPath = paste0(".\\SimResults\\result_", fileName, "_2S.RDS")
+saveRDS(results,resPath)             #STW: Silvennoinen, Terasvirta, Wade
+
+# Identify 2-Step by the IterationCount column1.  Should=1 or 2, depending on 2-Step definition. Or 2+ for Iterative
+
+# results <- readRDS(resPath)
+# stdReport <- calcStats(results)
 # 
 
 
