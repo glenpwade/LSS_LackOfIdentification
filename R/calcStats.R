@@ -9,7 +9,7 @@ calcStats <- function(resultSet,TVpars,Garchpars) {
     }
     #
     
-    resultSet <- resultSet[,c(3:9)]  #Extract the parameters
+    resultSet <- resultSet[,c(2:8)]  #Extract the parameters
     
     biasSet <- colMeans(resultSet) - c(TVpars,Garchpars)
     sdSet <- c(sd(resultSet[,1]),sd(resultSet[,2]),sd(resultSet[,3]),sd(resultSet[,4]),sd(resultSet[,5]),sd(resultSet[,6]),sd(resultSet[,7]))

@@ -51,19 +51,19 @@ library(foreach)
 library(doParallel)
 
 # Set a working directory
-#setwd("C:\\Repos\\LSS_LackOfIdentification")
+setwd("C:\\Repos\\LSS_LackOfIdentification")
 
-setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
+#setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
 
 # Set constants
-Reps <- 2000
+Reps <- 3000
 Tobs <- 2000
 
 # START SIMS HERE: ####
 
 # Setup the parallel backend ####
 #numCores <- parallel::detectCores() - 2
-numCores <- 10
+numCores <- 4
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
@@ -210,26 +210,39 @@ saveRDS(results,resPath)             #STW: Silvennoinen, Terasvirta, Wade
 # # stdReport <- calcStats(results)
 # 
 
+
 # Analyse the results:  ----
 
-# source("R\\calcStats.R")
-# 
-# TVpars <- c(0.5,4.0,log(10),0.5)
-# GARCHpars <- c(0.05,0.05,0.09)
-# 
-# # Remove all the failed estimations:
-# results <- results[results[,10]==0,]
-# stats <- calcStats(results,TVpars,GARCHpars)
-# 
-# # 2Step:
-# results2S <- results[results[,1]==2,]
-# stats <- calcStats(results2S,TVpars,GARCHpars)
-# 
-# #Iterative:
-# resultsIter <- results[results[,1] > 2,]
-# stats <- calcStats(resultsIter,TVpars,GARCHpars)
-# 
-# # LogLik se from actual
-# avg_Loglik <- mean(results[,9])
-# avgDeviation_Loglik <- sd(results[,9])
+source("R\\calcStats.R")
+
+fileName = "T2000_Low_VarShift"
+
+# Modify the start pars:
+TVpars <- c(0.5,1.5,log(10),0.5)
+GARCHpars <- c(0.05,0.05,0.09)
+
+resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
+results <- readRDS(resPath)
+
+# Remove all the failed estimations:
+results <- results[results[,10]==0,]
+
+# Remove all that hit MaxIter
+results <- results[results[,1]<100,]
+
+# Average Iterations (excl. 2-Step & maxIter):
+avgIterations <- mean(results[results[,1] > 2, 1])
+
+# 2Step:
+results2S <- results[results[,1]==2,]
+stats <- calcStats(results2S,TVpars,GARCHpars)
+
+#Iterative:
+resultsIter <- results[results[,1] > 2,]
+stats <- calcStats(resultsIter,TVpars,GARCHpars)
+
+# # LogLik se from nominal process value:
+avg_Loglik <- mean(results[,9])
+avgDeviation_Loglik <- sd(results[,9])
+
 
