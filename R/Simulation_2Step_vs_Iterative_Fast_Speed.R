@@ -45,7 +45,7 @@
 }
 
 # Initialise ####
-library(MTVGARCH)   # Ver. 0.9.8.27
+library(MTVGARCH)   # Ver. 0.9.8.49
 library(knitr)
 library(foreach)
 library(doParallel)
@@ -63,7 +63,7 @@ Tobs <- 2000
 
 # Setup the parallel backend ####
 #numCores <- parallel::detectCores() - 2
-numCores <- 3
+numCores <- 2
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
@@ -78,21 +78,22 @@ simData <- readRDS(filePath)
 Tobs = NROW(simData)
 st = (1:Tobs)/Tobs
 shape = tvshape$single
-# Create the TV Specification and set starting params to match the loaded Dataset
+# Create the TV Specification and set starting params close (but not equal) to the loaded Dataset
 TVspec <- tv(st,shape)
-TVspec$delta0 = 0.5
-TVspec$pars["deltaN",1] = 4.0
-TVspec$pars["speedN",1] = 5.5
-TVspec$pars["locN1",1] = 0.5
-TVspec$optimcontrol$parscale <- c(0.5,4.0,5.5,0.5)
+TVspec$delta0 = 1.0
+TVspec$pars["deltaN",1] = 2.0
+TVspec$pars["speedN",1] = 3.0
+TVspec$pars["locN1",1] = 0.66
+TVspec$optimcontrol$parscale <- c(0.5,4.0,2.3,0.5)    # Keep the parameter scaling aligned with actual process
+TVspec$optimcontrol$ndeps <- c(1e-8,1e-8,1e-8,1e-8)
 
-
+# Create the GARCH Specification and set starting params close (but not equal) to the loaded Dataset
 GARCHspec <- garch(garchtype$general)
-GARCHspec$pars["omega",1] = 0.05           
-GARCHspec$pars["alpha",1] = 0.05           
-GARCHspec$pars["beta",1]  = 0.90           
-GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)
-GARCHspec$optimcontrol$ndeps <- c(1e-3,1e-3,1e-3)
+GARCHspec$pars["omega",1] = 0.10           
+GARCHspec$pars["alpha",1] = 0.10           
+GARCHspec$pars["beta",1]  = 0.80           
+GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)    # Keep the parameter scaling aligned with actual process
+GARCHspec$optimcontrol$ndeps <- c(1e-8,1e-8,1e-8)
 
 
 # 2-STEP: ####
@@ -150,12 +151,12 @@ timestamp()
 results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{    
     
     # Set the estimation controls to suppress console output
-    estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=100, fixStartPars=FALSE, startparAdjust=10)
+    estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=50, fixStartPars=FALSE, startparAdjust=10)
     
     # Attempt the estimation
     mod <- tryCatch({
         # 1. Set desired Iterations & calc the "true" process LogLik Value
-        estCtrl$maxIter <- 100      
+        estCtrl$maxIter <- 50      
         myG <- calculate_g(TVspec)
         myH <- calculate_h(simData[,i],GARCHspec)
         processLoglik <- unname(loglik.tvgarch.univar(simData[,i],myG,myH))
@@ -177,7 +178,7 @@ results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = 
     if (is.null(mod)) {
         # FAILED
         # Return NA's to keep rbind happy & set ConvergeError (col 10) =1
-        return(c(2,rep(NA,8),1 ))
+        return(c(estCtrl$maxIter,rep(NA,8),1 ))
     } else {
         # Estimation succeeded and converged
         tvpars <- mod$Estimated$tv
@@ -219,7 +220,7 @@ fileName = "T2000_Fast_Speed"
 
 # Modify the start pars:
 TVpars <- c(0.5,4.0,5.5,0.5)
-GARCHpars <- c(0.05,0.05,0.09)
+GARCHpars <- c(0.05,0.05,0.90)
 
 resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
 results <- readRDS(resPath)
@@ -227,9 +228,8 @@ results <- readRDS(resPath)
 # Remove all the failed estimations:
 results <- results[results[,10]==0,]
 
-
 # Remove all that hit MaxIter
-results <- results[results[,1]<100,]
+results <- results[results[,1]<50,]
 
 # Average Iterations (excl. 2-Step & maxIter):
 avgIterations <- mean(results[results[,1] > 2, 1])
@@ -242,8 +242,6 @@ stats <- calcStats(results2S,TVpars,GARCHpars)
 resultsIter <- results[results[,1] > 2,]
 stats <- calcStats(resultsIter,TVpars,GARCHpars)
 
-# # LogLik se from nominal process value:
+# # LogLik se from actual
 avg_Loglik <- mean(results[,9])
 avgDeviation_Loglik <- sd(results[,9])
-
-

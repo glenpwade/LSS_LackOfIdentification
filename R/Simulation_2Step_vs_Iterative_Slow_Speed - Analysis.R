@@ -56,21 +56,22 @@ setwd("C:\\Repos\\LSS_LackOfIdentification")
 #setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
 
 # Set constants
-Reps <- 3000
+Reps <- 30
 Tobs <- 2000
 
 # START SIMS HERE: ####
 
 # Setup the parallel backend ####
+
 #numCores <- parallel::detectCores() - 2
-numCores <- 11
+numCores <- 10
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
 # Run the Simulation:  ####
 
 # Get the data:
-fileName = "T2000_Low_VarShift"
+fileName = "T2000_Slow_Speed"
 filePath = paste0(".\\SimSourceData\\",fileName,".RDS")
 simData <- readRDS(filePath)
 
@@ -78,30 +79,34 @@ simData <- readRDS(filePath)
 Tobs = NROW(simData)
 st = (1:Tobs)/Tobs
 shape = tvshape$single
-# Create the TV Specification and set starting params close (but not equal) to the loaded Dataset
+# Create the TV Specification and set starting params to match the loaded Dataset
 TVspec <- tv(st,shape)
-TVspec$delta0 = 1.0
-TVspec$pars["deltaN",1] = 2.0
-TVspec$pars["speedN",1] = 3.0
-TVspec$pars["locN1",1] = 0.66
-TVspec$optimcontrol$parscale <- c(0.5,4.0,2.3,0.5)    # Keep the parameter scaling aligned with actual process
+TVspec$delta0 = 0.5
+TVspec$pars["deltaN",1] = 4.0
+TVspec$pars["speedN",1] = 1.5
+TVspec$pars["locN1",1] = 0.5
+TVspec$optimcontrol$parscale <- c(0.5,4.0,1.5,0.5)
 TVspec$optimcontrol$ndeps <- c(1e-8,1e-8,1e-8,1e-8)
 
-# Create the GARCH Specification and set starting params close (but not equal) to the loaded Dataset
+
 GARCHspec <- garch(garchtype$general)
 GARCHspec$pars["omega",1] = 0.05           
 GARCHspec$pars["alpha",1] = 0.05           
 GARCHspec$pars["beta",1]  = 0.90           
-GARCHspec$optimcontrol$parscale <- c(0.10,0.10,0.80)    # Keep the parameter scaling aligned with actual process
+GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)
 GARCHspec$optimcontrol$ndeps <- c(1e-8,1e-8,1e-8)
 
+#rm(results_2s)
 # 2-STEP: ####
 cat("\nTWO-STEP:\n")
 timestamp()
-results_2s = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{
+results_2s = foreach(i=4:7, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", .verbose = TRUE)%do%{
     
     # Set the estimation controls to suppress console output
-    estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=1, fixStartPars=FALSE, startparAdjust=10)
+    estCtrl <- list(calcSE=FALSE, verbose=TRUE, maxIter=1, fixStartPars=FALSE, startparAdjust=10)
+    
+    #i = 4
+    #rm(mod)
     
     # Attempt the estimation
     mod <- tryCatch({
@@ -111,8 +116,15 @@ results_2s = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "M
         myH <- calculate_h(simData[,i],GARCHspec)
         processLoglik <- unname(loglik.tvgarch.univar(simData[,i],myG,myH))
         
+        
+        #TVspec$optimcontrol$ndeps <- rep(1e-8,4)  #     c(1e-4,1e-4,1e-4,1e-4)
+        #TVspec$optimcontrol$parscale <- c(0.5,4.0,1.5,0.5)
+        
+        
         # 2. Specify a multiplicitive TV GARCH model specification using the TV & GARCH specification
         modTVG <- tvgarch(TVspec,GARCHspec)
+        
+        #modTVG <- setVarianceTargetting(modTVG,0)
         
         # 3. Run the 2-Step estimation
         modTVG$iterationReltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
@@ -150,12 +162,12 @@ timestamp()
 results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{    
     
     # Set the estimation controls to suppress console output
-    estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=50, fixStartPars=FALSE, startparAdjust=10)
-    
+    estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=100, fixStartPars=FALSE, startparAdjust=10)
+
     # Attempt the estimation
     mod <- tryCatch({
         # 1. Set desired Iterations & calc the "true" process LogLik Value
-        estCtrl$maxIter <- 50      
+        estCtrl$maxIter <- 100      
         myG <- calculate_g(TVspec)
         myH <- calculate_h(simData[,i],GARCHspec)
         processLoglik <- unname(loglik.tvgarch.univar(simData[,i],myG,myH))
@@ -172,7 +184,7 @@ results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = 
         message(paste("Error in series", i, ":", e$message))
         return(NULL) 
     })
-    
+
     # Check if estimation succeeded and converged
     if (is.null(mod)) {
         # FAILED
@@ -215,11 +227,11 @@ saveRDS(results,resPath)             #STW: Silvennoinen, Terasvirta, Wade
 
 source("R\\calcStats.R")
 
-fileName = "T2000_Low_VarShift"
+fileName = "T2000_Slow_Speed"
 
 # Modify the start pars:
-TVpars <- c(0.5,1.5,log(10),0.5)
-GARCHpars <- c(0.1,0.1,0.8)
+TVpars <- c(0.5,4.0,1.5,0.5)
+GARCHpars <- c(0.05,0.05,0.09)
 
 resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
 results <- readRDS(resPath)
@@ -228,12 +240,10 @@ results <- readRDS(resPath)
 results <- results[results[,10]==0,]
 
 # Remove all that hit MaxIter
-results <- results[results[,1]<50,]
+results <- results[results[,1]<100,]
 
 # Average Iterations (excl. 2-Step & maxIter):
 avgIterations <- mean(results[results[,1] > 2, 1])
-
-print("T2000_Low_VarShift:")
 
 # 2Step:
 results2S <- results[results[,1]==2,]
@@ -243,9 +253,8 @@ stats <- calcStats(results2S,TVpars,GARCHpars)
 resultsIter <- results[results[,1] > 2,]
 stats <- calcStats(resultsIter,TVpars,GARCHpars)
 
-# # LogLik se from actual
+# # LogLik se from nominal process value:
 avg_Loglik <- mean(results[,9])
 avgDeviation_Loglik <- sd(results[,9])
-
 
 
