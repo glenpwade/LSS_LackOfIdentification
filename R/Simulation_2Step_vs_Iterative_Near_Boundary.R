@@ -45,7 +45,11 @@
 }
 
 # Initialise ####
+<<<<<<< HEAD
 library(MTVGARCH)   # Ver. 0.9.8.27
+=======
+library(MTVGARCH)   # Ver. 0.9.8.49
+>>>>>>> d17d40c92fe401e6884f54fcc59618cc766cdd96
 library(knitr)
 library(foreach)
 library(doParallel)
@@ -55,6 +59,8 @@ library(doParallel)
 
 setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
 
+#setwd("C:\\Source\\Repos\\LSS_LackOfIdentification")
+
 # Set constants
 Reps <- 2000
 Tobs <- 2000
@@ -63,7 +69,11 @@ Tobs <- 2000
 
 # Setup the parallel backend ####
 #numCores <- parallel::detectCores() - 2
+<<<<<<< HEAD
 numCores <- 10
+=======
+numCores <- 2
+>>>>>>> d17d40c92fe401e6884f54fcc59618cc766cdd96
 cl <- makeCluster(numCores)
 registerDoParallel(cl, cores = numCores)
 
@@ -78,6 +88,7 @@ simData <- readRDS(filePath)
 Tobs = NROW(simData)
 st = (1:Tobs)/Tobs
 shape = tvshape$single
+<<<<<<< HEAD
 # Create the TV Specification and set starting params to match the loaded Dataset
 TVspec <- tv(st,shape)
 TVspec$delta0 = 0.5
@@ -94,15 +105,40 @@ GARCHspec$pars["beta",1]  = 0.90
 GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)
 GARCHspec$optimcontrol$ndeps <- c(1e-3,1e-3,1e-3)
 
+=======
+# Create the TV Specification and set starting params close (but not equal) to the loaded Dataset
+TVspec <- tv(st,shape)
+TVspec$delta0 = 1.0
+TVspec$pars["deltaN",1] = 2.0
+TVspec$pars["speedN",1] = 3.0
+TVspec$pars["locN1",1] = 0.66
+TVspec$optimcontrol$parscale <- c(0.5,4.0,2.3,0.5)    # Keep the parameter scaling aligned with actual process
+TVspec$optimcontrol$ndeps <- c(1e-8,1e-8,1e-8,1e-8)
+
+# Create the GARCH Specification and set starting params close (but not equal) to the loaded Dataset
+GARCHspec <- garch(garchtype$general)
+GARCHspec$pars["omega",1] = 0.10           
+GARCHspec$pars["alpha",1] = 0.10           
+GARCHspec$pars["beta",1]  = 0.80           
+GARCHspec$optimcontrol$parscale <- c(0.05,0.05,0.9)    # Keep the parameter scaling aligned with actual process
+GARCHspec$optimcontrol$ndeps <- c(1e-8,1e-8,1e-8)
+>>>>>>> d17d40c92fe401e6884f54fcc59618cc766cdd96
 
 # 2-STEP: ####
 cat("\nTWO-STEP:\n")
 timestamp()
 results_2s = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{
+<<<<<<< HEAD
     
     # Set the estimation controls to suppress console output
     estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=1, fixStartPars=FALSE, startparAdjust=10)
     
+=======
+    
+    # Set the estimation controls to suppress console output
+    estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=1, fixStartPars=FALSE, startparAdjust=10)
+    
+>>>>>>> d17d40c92fe401e6884f54fcc59618cc766cdd96
     # Attempt the estimation
     mod <- tryCatch({
         # 1. Set desired Iterations & calc the "true" process LogLik Value
@@ -148,6 +184,7 @@ timestamp()
 # results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH", verbose=TRUE)%do%{
 
 results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = "MTVGARCH")%dopar%{    
+<<<<<<< HEAD
     
     # Set the estimation controls to suppress console output
     estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=100, fixStartPars=FALSE, startparAdjust=10)
@@ -173,11 +210,42 @@ results_Iter = foreach(i=1:Reps, .combine = rbind, .inorder = TRUE, .packages = 
         return(NULL) 
     })
     
+=======
+    
+    # Set the estimation controls to suppress console output
+    estCtrl <- list(calcSE=FALSE, verbose=FALSE, maxIter=50, fixStartPars=FALSE, startparAdjust=10)
+    
+    # Attempt the estimation
+    mod <- tryCatch({
+        # 1. Set desired Iterations & calc the "true" process LogLik Value
+        estCtrl$maxIter <- 50      
+        myG <- calculate_g(TVspec)
+        myH <- calculate_h(simData[,i],GARCHspec)
+        processLoglik <- unname(loglik.tvgarch.univar(simData[,i],myG,myH))
+        
+        # 2. Specify a multiplicitive TV GARCH model specification using the TV & GARCH specification
+        modTVG <- tvgarch(TVspec,GARCHspec)
+        
+        # 3. Run the 2-Step estimation
+        modTVG$iterationReltol <- 1e-5    #Hack: This value is used as Threshold for the Iteration Convergence
+        mod <- estimateTVGARCH(simData[,i],modTVG,estCtrl)
+        
+    }, error = function(e) {
+        # If a hard error occurs, return a placeholder with the flag set
+        message(paste("Error in series", i, ":", e$message))
+        return(NULL) 
+    })
+    
+>>>>>>> d17d40c92fe401e6884f54fcc59618cc766cdd96
     # Check if estimation succeeded and converged
     if (is.null(mod)) {
         # FAILED
         # Return NA's to keep rbind happy & set ConvergeError (col 10) =1
+<<<<<<< HEAD
         return(c(2,rep(NA,8),1 ))
+=======
+        return(c(estCtrl$maxIter,rep(NA,8),1 ))
+>>>>>>> d17d40c92fe401e6884f54fcc59618cc766cdd96
     } else {
         # Estimation succeeded and converged
         tvpars <- mod$Estimated$tv
@@ -199,6 +267,7 @@ rm(cl)
 # Save the results for reporting:  (Col:1 IterationCount), (Col10: 'EstimationError': 0(FALSE) / 1(TRUE))
 results <- rbind(results_2s,results_Iter)
 colnames(results) <- c("NrIterations","d0","d1","spd","loc","omega","alpha","beta","loglikDeviation","EstError")
+<<<<<<< HEAD
 
 resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
 saveRDS(results,resPath)             #STW: Silvennoinen, Terasvirta, Wade
@@ -232,4 +301,51 @@ saveRDS(results,resPath)             #STW: Silvennoinen, Terasvirta, Wade
 # # LogLik se from actual
 # avg_Loglik <- mean(results[,9])
 # avgDeviation_Loglik <- sd(results[,9])
+=======
+
+resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
+saveRDS(results,resPath)             #STW: Silvennoinen, Terasvirta, Wade
+
+# # Identify 2-Step by the IterationCount column1.  Should=1 or 2, depending on 2-Step definition. Or 2+ for Iterative
+# 
+# # results <- readRDS(resPath)
+# colnames(results) <- c("NrIterations","d0","d1","spd","loc","omega","alpha","beta","loglikDeviation","EstError")
+# # stdReport <- calcStats(results)
+# 
+
+
+# Analyse the results:  ----
+
+source("R\\calcStats.R")
+
+fileName = "T2000_Near_Boundary"
+
+# Modify the start pars:
+TVpars <- c(0.5,4.0,log(10),0.8)
+GARCHpars <- c(0.05,0.05,0.90)
+
+resPath = paste0(".\\SimResults\\result_", fileName, ".RDS")
+results <- readRDS(resPath)
+
+# Remove all the failed estimations:
+results <- results[results[,10]==0,]
+
+# Remove all that hit MaxIter
+results <- results[results[,1]<50,]
+
+# Average Iterations (excl. 2-Step & maxIter):
+avgIterations <- mean(results[results[,1] > 2, 1])
+
+# 2Step:
+results2S <- results[results[,1]==2,]
+stats <- calcStats(results2S,TVpars,GARCHpars)
+
+#Iterative:
+resultsIter <- results[results[,1] > 2,]
+stats <- calcStats(resultsIter,TVpars,GARCHpars)
+
+# # LogLik se from actual
+avg_Loglik <- mean(results[,9])
+avgDeviation_Loglik <- sd(results[,9])
+>>>>>>> d17d40c92fe401e6884f54fcc59618cc766cdd96
 
