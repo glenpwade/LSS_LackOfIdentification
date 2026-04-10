@@ -1,0 +1,45 @@
+# History files
+.Rhistory
+.Rapp.history
+
+# Session Data files
+.RData
+.RDataTmp
+
+# Data files
+*.RDS
+*.rds
+*.xlsx
+
+# Results Folders
+SimResults/
+SimResults_closeStart/
+
+# User-specific files
+.Ruserdata
+
+# RStudio files
+.Rproj.user/
+
+# Example code in package build process
+*-Ex.R
+
+# Output files from R CMD build/check
+/*.tar.gz
+/*.Rcheck/
+
+# Knitr and R Markdown cache and temporary files
+*_cache/
+/cache/
+*.utf8.md
+*.knit.md
+
+# R Environment Variables (often contains secrets)
+.Renviron
+
+# OAuth2 tokens
+.httr-oauth
+
+# pkgdown site output
+docs/
+
