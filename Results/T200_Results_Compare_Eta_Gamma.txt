@@ -1,0 +1,87 @@
+results_2S <- results[results[,1]==1, ]  # Col#1 = 1, 2-Step
+> results_Iter <- results[results[,1]==2, ]  # Col#1 = 2, Iterative
+> results_Valid_2S <- results_2S[results_2S[,10]==0, ]  # Filter out all models that diverged
+> results_Valid_2S <- results_Valid_2S[-divergentIDs,]  # Take the same 1000 series used in tvgarch results
+> results_Valid_2S <- results_Valid_2S[1:1000,]         # Take First 1000
+> results_Valid_Iter <- results_Iter[results_Iter[,10]==0, ]  # Filter out all models that diverged
+> results_Valid_Iter <- results_Valid_Iter[-divergentIDs,]    # Take the same 1000 series used in tvgarch results
+> results_Valid_Iter <- results_Valid_Iter[1:1000,]           # Take First 1000
+> summary(results_Iter[1:1000,(3:9)])  # V1-7: d0,d1,spd,loc, omega,alpha,beta
+       d0                 d1               spd                 loc               omega             alpha              beta       
+ Min.   :0.001212   Min.   :-0.5192   Min.   :0.0000219   Min.   :0.002248   Min.   :0.03481   Min.   :0.04058   Min.   :0.4472  
+ 1st Qu.:0.428686   1st Qu.: 0.2827   1st Qu.:1.3073436   1st Qu.:0.546414   1st Qu.:0.08882   1st Qu.:0.08585   1st Qu.:0.7553  
+ Median :0.486340   Median : 0.3986   Median :2.4349166   Median :0.706989   Median :0.11054   Median :0.10070   Median :0.7884  
+ Mean   :0.469753   Mean   : 0.5009   Mean   :3.0012916   Mean   :0.679012   Mean   :0.11654   Mean   :0.10021   Mean   :0.7831  
+ 3rd Qu.:0.529896   3rd Qu.: 0.6231   3rd Qu.:4.3885018   3rd Qu.:0.832935   3rd Qu.:0.13655   3rd Qu.:0.11428   3rd Qu.:0.8189  
+ Max.   :1.225857   Max.   : 4.7662   Max.   :6.9995397   Max.   :0.999999   Max.   :0.41752   Max.   :0.17720   Max.   :0.9254  
+> summary(results_Iter[1:1000,2])  # Col2: Iteration Count
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  3.000   3.000   4.000   6.676   5.000 180.000 
+> summary(results_Iter[1:1000,5])  # Col5: Speed
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000219 1.3073436 2.4349166 3.0012916 4.3885018 6.9995397 
+> calcStats(results_Valid_2S[1:1000,])
+
+
+Table: g(t)
+
+|              |      d0|  d0_se|     d1|  d1_se|    spd| spd_se|    loc| loc_se|
+|:-------------|-------:|------:|------:|------:|------:|------:|------:|------:|
+|meanBias, se: | -0.0315| 0.1086| -1.028| 0.3381| 0.7583|  2.029| 0.1189|  0.253|
+
+
+Table: h(t)
+
+|              | omega| omega_se|   alpha| alpha_se|    beta| beta_se|
+|:-------------|-----:|--------:|-------:|--------:|-------:|-------:|
+|meanBias, se: | 0.014|   0.0374| -0.0013|   0.0221| -0.0125|  0.0503|
+> calcStats(results_Valid_Iter[1:1000,])
+
+
+Table: g(t)
+
+|              |      d0|  d0_se|      d1|  d1_se|    spd| spd_se|    loc| loc_se|
+|:-------------|-------:|------:|-------:|------:|------:|------:|------:|------:|
+|meanBias, se: | -0.0315| 0.1086| -1.0012| 0.3622| 0.6574|  2.021| 0.1762| 0.2133|
+
+
+Table: h(t)
+
+|              |  omega| omega_se| alpha| alpha_se|    beta| beta_se|
+|:-------------|------:|--------:|-----:|--------:|-------:|-------:|
+|meanBias, se: | 0.0164|   0.0398| 2e-04|   0.0216| -0.0168|  0.0516|
+> summary(results_Valid_Iter[1:1000,2])  # Col2: Iteration Count
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  3.000   3.000   4.000   7.249   5.000 498.000 
+> ## Compare eta & gamma std Dev:
+> calcStats2(results_Valid_2S[1:1000,])
+
+
+Table: g(t)
+
+|              |      d0|  d0_se|     d1|  d1_se| spd(eta)| spd(eta)_se| spd(gam)| spd(gam)_se|    loc| loc_se|
+|:-------------|-------:|------:|------:|------:|--------:|-----------:|--------:|-----------:|------:|------:|
+|meanBias, se: | -0.0315| 0.1086| -1.028| 0.3381|   0.7583|       2.029|  -6.9391|    319.2248| 0.1189|  0.253|
+
+
+Table: h(t)
+
+|              | omega| omega_se|   alpha| alpha_se|    beta| beta_se|
+|:-------------|-----:|--------:|-------:|--------:|-------:|-------:|
+|meanBias, se: | 0.014|   0.0374| -0.0013|   0.0221| -0.0125|  0.0503|
+> calcStats2(results_Valid_Iter[1:1000,])
+
+
+Table: g(t)
+
+|              |      d0|  d0_se|      d1|  d1_se| spd(eta)| spd(eta)_se| spd(gam)| spd(gam)_se|    loc| loc_se|
+|:-------------|-------:|------:|-------:|------:|--------:|-----------:|--------:|-----------:|------:|------:|
+|meanBias, se: | -0.0315| 0.1086| -1.0012| 0.3622|   0.6574|       2.021|    -7.04|     293.064| 0.1762| 0.2133|
+
+
+Table: h(t)
+
+|              |  omega| omega_se| alpha| alpha_se|    beta| beta_se|
+|:-------------|------:|--------:|-----:|--------:|-------:|-------:|
+|meanBias, se: | 0.0164|   0.0398| 2e-04|   0.0216| -0.0168|  0.0516|
+> 
