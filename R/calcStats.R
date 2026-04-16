@@ -2,17 +2,18 @@ calcStats <- function(resultSet,TVpars,Garchpars) {
     
     # Debug:
     if(FALSE){
-        resultSet = results_2S
-        resultSet = results_Iter
-        TVpars = TVparScale
-        Garchpars = GARCHparScale
+        resultSet = results2S
+        resultSet = resultsIter
+        TVpars = TVpars
+        Garchpars = GARCHpars
     }
     #
     
     resultSet <- resultSet[,c(2:8)]  #Extract the parameters
 
-    biasSet <- colMeans(resultSet) - c(TVpars,Garchpars)
-    sdSet <- c(sd(resultSet[,1]),sd(resultSet[,2]),sd(resultSet[,3]),sd(resultSet[,4]),sd(resultSet[,5]),sd(resultSet[,6]),sd(resultSet[,7]))
+    biasSet <- colMeans(resultSet,na.rm = TRUE) - c(TVpars,Garchpars)
+    sdSet <- c(sd(resultSet[,1],na.rm = TRUE),sd(resultSet[,2],na.rm = TRUE),sd(resultSet[,3],na.rm = TRUE),sd(resultSet[,4],na.rm = TRUE)
+               ,sd(resultSet[,5],na.rm = TRUE),sd(resultSet[,6],na.rm = TRUE),sd(resultSet[,7],na.rm = TRUE))
     
     tblResultsGt <- matrix( c(biasSet[1],sdSet[1], biasSet[2],sdSet[2], biasSet[3],sdSet[3], biasSet[4],sdSet[4]), nrow = 1, ncol = 8 )
     colnames(tblResultsGt) <- c("d0","d0_se","d1","d1_se","spd","spd_se","loc","loc_se")

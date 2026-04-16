@@ -10,17 +10,16 @@ source("R/calcStats.R")
 
 # Analyse the results:  ----
 
-fileName = "T2000_Low_VarShift"
+fileName = "T2000_Slow_Speed"
 options("digits" = 4)
 #print("T2000_Low_VarShift:")
 
 # Modify the start pars:
-TVpars <- c(0.5,1.5,log(10),0.8)
-GARCHpars <- c(0.1,0.1,0.8)
+TVpars <- c(0.5,4.0,1.5,0.5)
+GARCHpars <- c(0.05,0.05,0.9)
 
-#TVpars <- c(0.5,4.0,5.5,0.8)
-#GARCHpars <- c(0.05,0.05,0.9)
 
+{# All Matched ----
 # 2-Step
 resPath = paste0(".\\SimResults\\result_", fileName, "_2Step.RDS")
 results2S <- readRDS(resPath)
@@ -71,6 +70,7 @@ resultsIter <- resultsIter[valid_names, ]
 stats <- calcStats(results2S,TVpars,GARCHpars)
 #
 stats <- calcStats(resultsIter,TVpars,GARCHpars)
+}
 
 
 # Consider the series where 2-Step estimations 'succeeded', but Iterative went on to fail:
@@ -86,9 +86,7 @@ resultsIter <- readRDS(resPath)
 resultsIter <- resultsIter[resultsIter[,1] > 100,]
 results2S <- results2S[rownames(resultsIter), ]
 
-# Finally:  Remove any errorred series:  (Series 1484 failed 2Step, but succeeded Iterative. Why?)
-results2S <- results2S[rownames(results2S) != "result.1484", ]
-resultsIter <- resultsIter[rownames(resultsIter) != "result.1484", ]
+# Finally:  Remove any errorred series:  NONE
 
 #
 stats <- calcStats(results2S,TVpars,GARCHpars)
